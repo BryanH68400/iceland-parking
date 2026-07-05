@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>冰島停車場資訊</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f4f6f8; --card:#ffffff; --ink:#17242f; --muted:#54646f; --line:#dde4ea;
+  --brand:#174a5c; --brand-ink:#ffffff; --accent:#1e6fb8;
+  --free:#1e7a34; --paid:#c22f2f; --part:#c96a00; --unk:#6b7680;
+  --r:12px; --shadow:0 2px 10px rgba(23,36,47,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,"Microsoft JhengHei","PingFang TC",sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:var(--accent)}
+.hide{display:none!important}
+
+header{background:var(--brand);color:var(--brand-ink);padding:10px 14px;position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;font-weight:700;flex:1}
+header .sub{font-size:11.5px;opacity:.75;display:block;font-weight:400}
+.iconbtn{padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.14);font-size:14px;min-height:40px}
+.iconbtn:active{background:rgba(255,255,255,.28)}
+
+.bar{position:sticky;top:56px;z-index:850;background:var(--bg);padding:10px 12px 6px;border-bottom:1px solid var(--line)}
+.search{display:flex;gap:8px}
+.search input{flex:1;padding:11px 14px;border:1.5px solid var(--line);border-radius:var(--r);font-size:16px;background:var(--card)}
+.search input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 6px;-webkit-overflow-scrolling:touch}
+.chip{white-space:nowrap;padding:6px 12px;border-radius:99px;border:1.5px solid var(--line);background:var(--card);font-size:13.5px;color:var(--muted)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.tabs{display:flex;gap:6px;padding:6px 0 2px}
+.tab{flex:1;text-align:center;padding:9px;border-radius:10px;background:var(--card);border:1.5px solid var(--line);font-weight:600;font-size:14.5px;color:var(--muted)}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+main{padding:10px 12px 90px;max-width:1080px;margin:0 auto}
+.stat{font-size:12.5px;color:var(--muted);padding:2px 2px 8px}
+
+.tblwrap{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{padding:10px 10px;text-align:left;font-size:14px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:#eef3f7;color:#33454f;font-size:12.5px;position:sticky;top:0}
+td.name{white-space:normal;min-width:150px;font-weight:600}
+td .en{display:block;font-size:11.5px;color:var(--muted);font-weight:400}
+tbody tr:active{background:#eaf2f8}
+tbody tr{cursor:pointer}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
+.p-N{background:var(--free)}.p-Y{background:var(--paid)}.p-YN{background:var(--part)}.p-U{background:var(--unk)}
+
+#map{height:calc(100dvh - 235px);min-height:380px;border-radius:var(--r);box-shadow:var(--shadow);z-index:1}
+.legend{background:var(--card);border-radius:10px;padding:8px 12px;box-shadow:var(--shadow);font-size:12.5px;line-height:1.9;display:flex;gap:14px;flex-wrap:wrap}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.leaflet-popup-content{font-family:inherit;font-size:14px;margin:12px 14px}
+.pop b{font-size:15px}
+.pop .row{margin:3px 0;color:var(--muted);font-size:13px}
+.pop .acts{display:flex;gap:6px;margin-top:8px}
+.pop .acts a,.pop .acts button{flex:1;text-align:center;padding:7px 6px;border-radius:8px;font-size:13.5px;font-weight:700;text-decoration:none}
+.nav-a{background:var(--accent);color:#fff!important}
+.more-a{background:#e8eef3;color:var(--brand)}
+
+.sheetbg{position:fixed;inset:0;background:rgba(10,20,28,.45);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
+.card{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:86dvh;overflow-y:auto;padding:18px 18px 26px;position:relative}
+@media(min-width:760px){.sheetbg{align-items:center}.card{border-radius:18px}}
+.card h2{font-size:20px;margin-bottom:2px;padding-right:40px}
+.card .sub2{color:var(--muted);font-size:13px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:96px 1fr;gap:7px 12px;font-size:14.5px;margin:10px 0}
+.grid dt{color:var(--muted);font-size:13px;padding-top:1px}
+.grid dd{word-break:break-word}
+.actrow{display:flex;gap:10px;margin:14px 0 4px}
+.bigbtn{flex:1;padding:14px;border-radius:12px;font-size:16.5px;font-weight:800;text-align:center;text-decoration:none;min-height:48px;border:none;cursor:pointer}
+.b-nav{background:var(--accent);color:#fff}
+.b-rep{background:#e8eef3;color:var(--brand)}
+.b-x{position:absolute;top:10px;right:12px;font-size:22px;color:var(--muted);padding:6px 10px}
+
+.modal{background:var(--card);border-radius:16px;width:min(94vw,560px);max-height:88dvh;overflow-y:auto;padding:20px;position:relative}
+.modal h2{font-size:19px;margin-bottom:12px}
+label{display:block;font-size:13.5px;color:var(--muted);margin:12px 0 4px;font-weight:600}
+input[type=text],input[type=search],select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:15px;background:#fff}
+textarea{min-height:74px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.send{width:100%;margin-top:18px;padding:14px;border-radius:12px;background:var(--brand);color:#fff;font-size:16px;font-weight:800}
+.send:disabled{opacity:.5}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+.ok{background:#e6f4e8;color:#155724;padding:12px;border-radius:10px;margin-top:12px;font-weight:600}
+.err{background:#fdeaea;color:#8a1f1f;padding:12px;border-radius:10px;margin-top:12px;font-weight:600}
+.colcheck{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.colcheck label{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:var(--ink);font-weight:400;padding:7px 8px;border:1px solid var(--line);border-radius:8px}
+.hp{position:absolute;left:-5000px;opacity:0}
+.load{text-align:center;padding:48px 0;color:var(--muted)}
+.spin{display:inline-block;width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin-bottom:10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+footer{padding:18px 14px 30px;text-align:center;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1">
+    <h1>🅿️ 冰島停車場資訊</h1>
+    <span class="sub" id="meta">載入中…</span>
+  </div>
+  <button class="iconbtn" id="btnCols" title="欄位設定">⚙️ 欄位</button>
+  <button class="iconbtn" id="btnRep0">✍️ 回報</button>
+</header>
+
+<div class="bar">
+  <div class="search"><input id="q" type="search" placeholder="搜尋停車場／景點／區域…" autocomplete="off"></div>
+  <div class="chips" id="regionChips"></div>
+  <div class="chips">
+    <button class="chip on" data-fee="">全部收費狀態</button>
+    <button class="chip" data-fee="N">🟢 免費</button>
+    <button class="chip" data-fee="Y">🔴 收費</button>
+    <button class="chip" data-fee="YN">🟠 部分時段</button>
+    <button class="chip" data-wc="1" id="wcChip">🚻 有廁所</button>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tabList">📋 清單</button>
+    <button class="tab" id="tabMap">🗺️ 地圖</button>
+  </div>
+</div>
+
+<main>
+  <div class="stat" id="stat"></div>
+  <div id="listView">
+    <div class="load" id="loading"><span class="spin"></span><br>正在讀取最新資料…</div>
+    <div class="tblwrap hide" id="tblwrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  </div>
+  <div id="mapView" class="hide">
+    <div id="map"></div>
+    <div class="legend" style="margin-top:8px">
+      <span><span class="dot" style="background:#1e7a34"></span>免費</span>
+      <span><span class="dot" style="background:#c22f2f"></span>收費</span>
+      <span><span class="dot" style="background:#c96a00"></span>部分時段</span>
+      <span><span class="dot" style="background:#6b7680"></span>未標示</span>
+    </div>
+  </div>
+</main>
+
+<footer>資料來源：冰島停車場最新狀況（冰島研究社 Line 群友合力完成）<br>本站僅供群友旅途參考・回報經管理員審核後生效</footer>
+
+<div id="overlay" class="sheetbg hide"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ====== 設定 ====== */
+const SHEET_ID = '10W3xfo4RWzDL2iBK8rDEQL-4u1BYc_w0vMvst8Bcwtw';
+const GID = 0;
+const GAS_URL = '__GAS_URL__'; /* 部署 GAS 後回填 */
+const DATA_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&gid=' + GID + '&range=A2:P200';
+
+/* 欄位定義（i = 試算表 A..P 索引） */
+const COLS = [
+  {i:0,  k:'region', n:'方位', def:1},
+  {i:2,  k:'zh',     n:'景點（中文）', def:1},
+  {i:1,  k:'en',     n:'景點（英文）', def:0},
+  {i:3,  k:'alias',  n:'別名', def:0},
+  {i:4,  k:'fee',    n:'收費', def:1},
+  {i:8,  k:'amount', n:'金額(ISK)', def:1},
+  {i:5,  k:'parka',  n:'Parka', def:0},
+  {i:6,  k:'easy',   n:'EasyPark', def:0},
+  {i:7,  k:'how',    n:'繳費方式', def:0},
+  {i:11, k:'wc',     n:'廁所', def:1},
+  {i:12, k:'wcfee',  n:'廁所收費', def:0},
+  {i:9,  k:'date',   n:'更新日期', def:1},
+  {i:10, k:'by',     n:'更新者', def:0},
+  {i:13, k:'note',   n:'補充', def:0},
+];
+const REGIONS = ['首都','西','西峽灣','西北','東北','東','南'];
+
+let DATA = [], shown = [], map = null, markers = [];
+let f = { q:'', region:'', fee:'', wc:false };
+let visCols = JSON.parse(localStorage.getItem('cols') || 'null') || COLS.filter(c=>c.def).map(c=>c.k);
+
+/* ====== 讀取 gviz ====== */
+function cellStr(c){
+  if(!c) return '';
+  if(c.f !== undefined && c.f !== null) return String(c.f).trim();
+  if(c.v === null || c.v === undefined) return '';
+  if(typeof c.v === 'string' && c.v.indexOf('Date(') === 0){ const m=c.v.match(/Date\((\d+),(\d+),(\d+)/); return m?(m[1]+'/'+(+m[2]+1)+'/'+m[3]):c.v; }
+  return String(c.v).trim();
+}
+async function load(){
+  try{
+    const t = await (await fetch(DATA_URL)).text();
+    const j = JSON.parse(t.substring(t.indexOf('{'), t.lastIndexOf('}')+1));
+    const rows = (j.table.rows||[]).map(r=>r.c||[]);
+    const body = rows.filter(r=>{ const a=cellStr(r[0]); return a && a!=='方位'; });
+    DATA = body.map((r,ix)=>{
+      const g = i=>cellStr(r[i]);
+      const lat=parseFloat(g(14)), lon=parseFloat(g(15));
+      return { id:ix, region:g(0), en:g(1), zh:g(2)||g(1), alias:g(3), fee:normFee(g(4)),
+               feeRaw:g(4), parka:g(5), easy:g(6), how:g(7), amount:g(8), date:g(9), by:g(10),
+               wc:g(11), wcfee:g(12), note:g(13),
+               lat:isFinite(lat)?lat:null, lon:isFinite(lon)?lon:null };
+    }).filter(d=>d.en||d.zh);
+    document.getElementById('meta').textContent = '共 ' + DATA.length + ' 筆・即時同步試算表';
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('tblwrap').classList.remove('hide');
+    render();
+  }catch(e){
+    document.getElementById('loading').innerHTML = '⚠️ 資料載入失敗。<br>請確認試算表已開放「知道連結者可檢視」。<br><button class="chip on" onclick="load()" style="margin-top:10px">重試</button>';
+  }
+}
+function normFee(v){ v=(v||'').toUpperCase().replace(/Ｙ/g,'Y').replace(/Ｎ/g,'N').trim();
+  if(v==='N') return 'N'; if(v==='Y') return 'Y'; if(v.indexOf('Y')>-1&&v.indexOf('N')>-1) return 'YN'; return 'U'; }
+const feeTxt = {N:'免費',Y:'收費',YN:'部分時段',U:'未標示'};
+const feeCls = {N:'p-N',Y:'p-Y',YN:'p-YN',U:'p-U'};
+const feeHex = {N:'#1e7a34',Y:'#c22f2f',YN:'#c96a00',U:'#6b7680'};
+
+/* ====== 篩選與渲染 ====== */
+function apply(){
+  const q = f.q.toLowerCase();
+  shown = DATA.filter(d=>{
+    if(f.region && d.region!==f.region) return false;
+    if(f.fee && d.fee!==f.fee) return false;
+    if(f.wc && !/y/i.test(d.wc)) return false;
+    if(q && (d.zh+d.en+d.alias+d.region).toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+  document.getElementById('stat').textContent = '顯示 ' + shown.length + ' / ' + DATA.length + ' 筆';
+}
+function render(){
+  apply();
+  const cols = COLS.filter(c=>visCols.includes(c.k));
+  document.getElementById('thead').innerHTML = '<tr>'+cols.map(c=>'<th>'+c.n+'</th>').join('')+'</tr>';
+  document.getElementById('tbody').innerHTML = shown.map(d=>'<tr data-id="'+d.id+'">'+cols.map(c=>{
+    if(c.k==='zh') return '<td class="name">'+esc(d.zh)+'<span class="en">'+esc(d.en)+'</span></td>';
+    if(c.k==='fee') return '<td><span class="pill '+feeCls[d.fee]+'">'+feeTxt[d.fee]+'</span></td>';
+    return '<td>'+esc(String(d[c.k]||'')).slice(0,60)+'</td>';
+  }).join('')+'</tr>').join('');
+  if(map) drawMarkers();
+}
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+/* ====== 地圖 ====== */
+function initMap(){
+  map = L.map('map',{zoomSnap:.5}).setView([64.95,-18.6],6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap 貢獻者',maxZoom:19}).addTo(map);
+  drawMarkers();
+}
+function drawMarkers(){
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  shown.filter(d=>d.lat).forEach(d=>{
+    const m = L.circleMarker([d.lat,d.lon],{radius:8,color:'#fff',weight:1.5,fillColor:feeHex[d.fee],fillOpacity:.95}).addTo(map);
+    m.bindPopup('<div class="pop"><b>'+esc(d.zh)+'</b><div class="row">'+esc(d.region)+'｜'+feeTxt[d.fee]+(d.amount?'・'+esc(d.amount)+' ISK':'')+'</div><div class="acts"><a class="nav-a" target="_blank" rel="noopener" href="'+navUrl(d)+'">🚗 導航</a><button class="more-a" onclick="openCard('+d.id+')">詳細資訊</button></div></div>');
+    markers.push(m);
+  });
+}
+const navUrl = d => 'https://www.google.com/maps?q='+d.lat+','+d.lon;
+
+/* ====== 資訊卡 ====== */
+const ov = document.getElementById('overlay');
+function openCard(id){
+  const d = DATA.find(x=>x.id===id); if(!d) return;
+  ov.innerHTML = '<div class="card">'
+    +'<button class="b-x" onclick="closeOv()">✕</button>'
+    +'<h2>'+esc(d.zh)+'</h2>'
+    +'<div class="sub2">'+esc(d.en)+(d.alias?'｜'+esc(d.alias):'')+'</div>'
+    +'<span class="pill '+feeCls[d.fee]+'">'+feeTxt[d.fee]+'</span>'
+    +'<dl class="grid">'
+    +'<dt>方位</dt><dd>'+esc(d.region)+'</dd>'
+    +(d.amount?'<dt>金額</dt><dd>'+esc(d.amount)+' ISK</dd>':'')
+    +((d.parka||d.easy)?'<dt>APP</dt><dd>'+[d.parka?'Parka':'',d.easy?'EasyPark':''].filter(Boolean).join('、')+'</dd>':'')
+    +(d.how?'<dt>繳費方式</dt><dd>'+esc(d.how)+'</dd>':'')
+    +'<dt>廁所</dt><dd>'+(d.wc?esc(d.wc):'未標示')+(d.wcfee?'（'+esc(d.wcfee)+'）':'')+'</dd>'
+    +(d.note?'<dt>補充</dt><dd>'+esc(d.note)+'</dd>':'')
+    +(d.date?'<dt>更新</dt><dd>'+esc(d.date)+'｜'+esc(d.by)+'</dd>':'')
+    +(d.lat?'<dt>座標</dt><dd>'+d.lat.toFixed(5)+', '+d.lon.toFixed(5)+'</dd>':'')
+    +'</dl>'
+    +'<div class="actrow">'
+    +(d.lat?'<a class="bigbtn b-nav" target="_blank" rel="noopener" href="'+navUrl(d)+'">🚗 一鍵導航</a>':'')
+    +'<button class="bigbtn b-rep" data-en="'+esc(d.en)+'" onclick="openReport(\'update\',this.dataset.en)">✍️ 回報更新</button>'
+    +'</div></div>';
+  ov.classList.remove('hide');
+}
+function closeOv(){ ov.classList.add('hide'); ov.innerHTML=''; }
+ov.addEventListener('click', e=>{ if(e.target===ov) closeOv(); });
+
+/* ====== 欄位設定 ====== */
+document.getElementById('btnCols').onclick = ()=>{
+  ov.innerHTML = '<div class="modal"><button class="b-x" onclick="closeOv()">✕</button><h2>⚙️ 表格欄位設定</h2>'
+    +'<div class="colcheck">'+COLS.map(c=>'<label><input type="checkbox" value="'+c.k+'" '+(visCols.includes(c.k)?'checked':'')+'>'+c.n+'</label>').join('')+'</div>'
+    +'<button class="send" onclick="saveCols()">套用</button>'
+    +'<div class="note">設定儲存在你的裝置，不影響其他人。</div></div>';
+  ov.classList.remove('hide');
+};
+function saveCols(){
+  visCols = [...ov.querySelectorAll('input:checked')].map(i=>i.value);
+  if(!visCols.includes('zh')) visCols.unshift('zh');
+  localStorage.setItem('cols', JSON.stringify(visCols));
+  closeOv(); render();
+}
+
+/* ====== 回報 ====== */
+function openReport(type, spot){
+  const opts = DATA.map(d=>'<option value="'+esc(d.en)+'" '+(d.en===spot?'selected':'')+'>'+esc(d.zh)+'（'+esc(d.en)+'）</option>').join('');
+  ov.innerHTML = '<div class="modal"><button class="b-x" onclick="closeOv()">✕</button><h2>✍️ 回報</h2>'
+    +'<form id="repForm">'
+    +'<label>回報類型</label>'
+    +'<select name="type" id="repType" onchange="repTypeUI()">'
+    +'<option value="update"'+(type==='update'?' selected':'')+'>更正既有地點資訊</option>'
+    +'<option value="new">新增地點</option>'
+    +'<option value="idea">系統建議</option>'
+    +'</select>'
+    +'<div id="secUpdate">'
+    +'<label>地點</label><select name="spot">'+opts+'</select>'
+    +'<div class="two"><div><label>是否收費</label><select name="fee"><option value="">（不變）</option><option value="N">免費</option><option value="Y">收費</option><option value="Y/N">部分時段收費</option></select></div>'
+    +'<div><label>金額 ISK</label><input type="text" name="amount" inputmode="numeric" placeholder="（不變）"></div></div>'
+    +'<div class="two"><div><label>支援 APP</label><select name="app"><option value="">（不變）</option><option>Parka</option><option>EasyPark</option><option>兩者皆可</option><option>無</option></select></div>'
+    +'<div><label>廁所</label><select name="wc"><option value="">（不變）</option><option value="N">無</option><option value="Y">有・免費</option><option value="Y-收費">有・收費</option></select></div></div>'
+    +'<label>補充說明（現場狀況、金額變動…）</label><textarea name="note" placeholder="只需填有變動的部分"></textarea>'
+    +'</div>'
+    +'<div id="secNew" class="hide">'
+    +'<label>地點名稱（英文或冰島文）</label><input type="text" name="newName" placeholder="例：Studlagil East Parking">'
+    +'<label>Google Maps 連結（必填，用於定位）</label><input type="text" name="gmap" placeholder="Google Maps 分享 → 複製連結貼上">'
+    +'<label>地點說明（中文名／收費／廁所…）</label><textarea name="newNote"></textarea>'
+    +'</div>'
+    +'<div id="secIdea" class="hide"><label>你的建議</label><textarea name="idea" placeholder="對網站或資料的建議"></textarea></div>'
+    +'<label>你的暱稱（群/暱稱）＊必填</label><input type="text" name="nick" required placeholder="例：D/小明">'
+    +'<input class="hp" type="text" name="website" tabindex="-1" autocomplete="off">'
+    +'<button class="send" type="submit">送出回報</button>'
+    +'<div id="repMsg"></div>'
+    +'<div class="note">回報會進入待審清單，管理員核可後自動更新資料與地圖。</div>'
+    +'</form></div>';
+  ov.classList.remove('hide');
+  repTypeUI();
+  document.getElementById('repForm').onsubmit = submitReport;
+}
+function repTypeUI(){
+  const t = document.getElementById('repType').value;
+  document.getElementById('secUpdate').classList.toggle('hide', t!=='update');
+  document.getElementById('secNew').classList.toggle('hide', t!=='new');
+  document.getElementById('secIdea').classList.toggle('hide', t!=='idea');
+}
+document.getElementById('btnRep0').onclick = ()=>openReport('update','');
+async function submitReport(e){
+  e.preventDefault();
+  const msg = document.getElementById('repMsg');
+  if(GAS_URL.indexOf('__')===0){ msg.innerHTML='<div class="err">回報功能尚未開通（後端未部署）。</div>'; return; }
+  const fd = new FormData(e.target);
+  if(fd.get('website')) return; /* honeypot */
+  const payload = Object.fromEntries(fd.entries());
+  const btn = e.target.querySelector('.send'); btn.disabled = true; btn.textContent='送出中…';
+  try{
+    const res = await fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
+    const j = await res.json();
+    if(j.ok){ msg.innerHTML='<div class="ok">✅ 已收到回報！管理員審核後就會更新，感謝你。</div>'; e.target.querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true); }
+    else throw new Error(j.error||'unknown');
+  }catch(err){
+    msg.innerHTML='<div class="err">送出失敗，請稍後再試或直接在 Line 群回報。</div>';
+    btn.disabled=false; btn.textContent='送出回報';
+  }
+}
+
+/* ====== 事件 ====== */
+document.getElementById('q').addEventListener('input', e=>{ f.q=e.target.value; render(); });
+const rc = document.getElementById('regionChips');
+rc.innerHTML = '<button class="chip on" data-r="">全部區域</button>' + REGIONS.map(r=>'<button class="chip" data-r="'+r+'">'+r+'</button>').join('');
+rc.addEventListener('click', e=>{ const b=e.target.closest('.chip'); if(!b) return;
+  rc.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); b.classList.add('on'); f.region=b.dataset.r; render(); });
+document.querySelectorAll('.chip[data-fee]').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('.chip[data-fee]').forEach(c=>c.classList.remove('on')); b.classList.add('on'); f.fee=b.dataset.fee; render(); }));
+document.getElementById('wcChip').addEventListener('click', e=>{ f.wc=!f.wc; e.currentTarget.classList.toggle('on', f.wc); render(); });
+document.getElementById('tbody').addEventListener('click', e=>{ const tr=e.target.closest('tr'); if(tr) openCard(+tr.dataset.id); });
+document.getElementById('tabList').onclick = ()=>switchTab(true);
+document.getElementById('tabMap').onclick = ()=>switchTab(false);
+function switchTab(list){
+  document.getElementById('tabList').classList.toggle('on', list);
+  document.getElementById('tabMap').classList.toggle('on', !list);
+  document.getElementById('listView').classList.toggle('hide', !list);
+  document.getElementById('mapView').classList.toggle('hide', list);
+  if(!list){ if(!map) initMap(); setTimeout(()=>map.invalidateSize(),60); }
+}
+load();
+</script>
+</body>
+</html>
