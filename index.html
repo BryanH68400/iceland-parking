@@ -211,13 +211,14 @@ const feeCls = {N:'p-N',Y:'p-Y',YN:'p-YN',U:'p-U'};
 const feeHex = {N:'#1e7a34',Y:'#c22f2f',YN:'#c96a00',U:'#6b7680'};
 
 /* ====== 篩選與渲染 ====== */
+const norm = s => String(s).toLowerCase().replace(/ð/g,'d').replace(/þ/g,'th').replace(/æ/g,'ae').replace(/á/g,'a').replace(/í/g,'i').replace(/ú/g,'u').replace(/é/g,'e').replace(/[óö]/g,'o').replace(/ý/g,'y');
 function apply(){
-  const q = f.q.toLowerCase();
+  const q = norm(f.q);
   shown = DATA.filter(d=>{
     if(f.region && d.region!==f.region) return false;
     if(f.fee && d.fee!==f.fee) return false;
     if(f.wc && !/y/i.test(d.wc)) return false;
-    if(q && (d.zh+d.en+d.alias+d.region).toLowerCase().indexOf(q)===-1) return false;
+    if(q && norm(d.zh+d.en+d.alias+d.region).indexOf(q)===-1) return false;
     return true;
   });
   document.getElementById('stat').textContent = '顯示 ' + shown.length + ' / ' + DATA.length + ' 筆';
