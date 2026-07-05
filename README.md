@@ -1,9 +1,7 @@
-# 冰島停車場資訊網站
+# iceland-parking
 
-冰島研究社 Line 群共同維護的停車場資訊查詢網站。
+冰島停車場資訊查詢網站（冰島研究社）— 查詢/地圖/導航/回報
 
-- 前端：`index.html`（GitHub Pages）
-- 後端：`Code.gs`（Google Apps Script，收回報＋審核自動併入試算表）
-- 資料來源：Google Sheets（gviz 即時讀取）
-
-功能：即時查詢／篩選、欄位設定、資訊卡、一鍵導航、Leaflet 地圖（依收費上色）、回報表單（管理員審核後自動更新）。
+- 前端：index.html（GitHub Pages）
+- 資料：Google Sheet 副本（gviz 即時讀取）
+- 回報後端：Google Apps Script（Code.gs 綁定副本；審核在 Reports 分頁）
